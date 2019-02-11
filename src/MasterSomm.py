@@ -1,10 +1,20 @@
+'''
+Nirav Shah
+CMSC 478
+Prof. Marron
+
+Note: I used code from a Kaggle kernel as a basis for my project. Here is the source: https://www.kaggle.com/carkar/classifying-wine-type-by-review/notebook
+'''
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import (RandomForestClassifier, AdaBoostClassifier, ExtraTreesClassifier, GradientBoostingClassifier)
-from sklearn.svm import SVC
+from sklearn import svm
 from sklearn.model_selection import KFold, cross_val_score
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
 import pandas as pd
 import unicodedata
 import nltk
@@ -23,7 +33,7 @@ data = data[pd.notnull(data.price)]
 #Filtering out stuff
 country = data.groupby('country').filter(lambda x: len(x) >100)
 
-X = data.drop(['Unnamed: 0','country','designation','points','province','region_1','region_2','variety','winery'], axis = 1)
+X = data.drop(['Unnamed: 0','country','designation','points','price','province','region_1','region_2','variety','winery'], axis = 1)
 y = data.variety
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=1)
@@ -83,8 +93,8 @@ from scipy.sparse import hstack
 #Creating our training and test data
 vect = CountVectorizer(stop_words = stop)
 X_train_dtm = vect.fit_transform(X_train.description)
-price = X_train.price.values[:,None]
-X_train_dtm = hstack((X_train_dtm, price))
+#price = X_train.price.values[:,None]
+#X_train_dtm = hstack((X_train_dtm, price))
 
 X_test_dtm = vect.transform(X_test.description)
 #price_test = X_test.price.values[:,None]
@@ -93,7 +103,7 @@ X_test_dtm = vect.transform(X_test.description)
 #Setting a seed so we can get consistent results
 seed = 7
 
-'''
+
 #Generating the logistic models using our training data
 models = {}
 for z in wine:
@@ -119,7 +129,8 @@ comparison = pd.DataFrame({'actual': y_test.values, 'predicted': predicted_wine.
 
 #Printing the accuracy
 print('Logistic Regression Accuracy Score:',  accuracy_score(comparison.actual, comparison.predicted)*100, "%")
-print(comparisonETC.head(20))
+print(comparison.head(20))
+
 
 #Generating the Random Forest Classifier models using our training data
 modelsRFC = {}
@@ -134,7 +145,7 @@ testModel = RandomForestClassifier(random_state=seed, n_estimators=25, n_jobs=1)
 scoresRFC = cross_val_score(testModel, X_train_dtm, y, cv=10)
 print("Accuracy: %0.6f (+/- %0.6f)" % (scoresRFC.mean(), scoresRFC.std() * 2))
 testModel.fit(X_train_dtm, y)
-print(testModel.feature_importances_)
+importances = testModel.feature_importances_
 
 testing_probs_RFC = pd.DataFrame(columns = wine)
 
@@ -148,19 +159,31 @@ comparisonRFC = pd.DataFrame({'actual': y_test.values, 'predicted': predicted_wi
 
 #Printing the accuracy
 print('Random Forest Classifier Accuracy Score:', accuracy_score(comparisonRFC.actual, comparisonRFC.predicted) * 100, "%")
-print(comparisonETC.head(20))
+print(comparisonRFC.head(20))
+
+std = np.std([tree.feature_importances_ for tree in testModel.estimators_],
+             axis=0)
+indices = np.argsort(importances)[::-1]
+
+# Print the feature ranking
+print("Feature ranking:")
+
+for f in range(X_train_dtm.shape[0]):
+    print("%d. feature %d (%f)" % (f, indices[f], importances[indices[f]]))
+
+print("Testing: ", vect.get_feature_names())
 
 
 #Generating the Ada Boost Classifier models using our training data
 modelsADA = {}
 for z in wine:
-    modelADA = AdaBoostClassifier(random_state=seed, n_estimators=150, learning_rate=0.5)
+    modelADA = AdaBoostClassifier(random_state=seed, n_estimators=200, learning_rate=0.5)
     y = y_train == z
     modelADA.fit(X_train_dtm, y)
     modelsADA[z] = modelADA
 
 #Using 10-fold cross validation to generate a score for model comparison
-testModel = AdaBoostClassifier(random_state=seed, n_estimators=150, learning_rate=0.5)
+testModel = AdaBoostClassifier(random_state=seed, n_estimators=200, learning_rate=0.5)
 scoresADA = cross_val_score(testModel, X_train_dtm, y, cv=10)
 print("Accuracy: %0.6f (+/- %0.6f)" % (scoresADA.mean(), scoresADA.std() * 2))
 
@@ -176,7 +199,8 @@ comparisonADA = pd.DataFrame({'actual': y_test.values, 'predicted': predicted_wi
 
 #Printing the accuracy
 print('Ada Boost Classifier Accuracy Score:', accuracy_score(comparisonADA.actual, comparisonADA.predicted) * 100, "%")
-print(comparisonETC.head(20))
+print(comparisonADA.head(20))
+
 
 #Generating the Extra Trees Classifier models using our training data
 modelsETC = {}
@@ -205,7 +229,7 @@ comparisonETC = pd.DataFrame({'actual': y_test.values, 'predicted': predicted_wi
 
 #Printing the accuracy
 print('Extra Trees Classifier Accuracy Score:', accuracy_score(comparisonETC.actual, comparisonETC.predicted) * 100, "%")
-print(comparisonETC.head(20))'''
+print(comparisonETC.head(20))
 
 
 #Generating the Gradient Boosting Classifier models using our training data
@@ -234,4 +258,6 @@ comparisonGBC = pd.DataFrame({'actual': y_test.values, 'predicted': predicted_wi
 
 #Printing the accuracy
 print('Gradient Boosting Classifier Accuracy Score:', accuracy_score(comparisonGBC.actual, comparisonGBC.predicted) * 100, "%")
-print(comparisonETC.head(20))
+print(comparisonGBC.head(20))
+
+
