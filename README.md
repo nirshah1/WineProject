@@ -16,3 +16,4 @@ My goal was to predict as accurately as possible the variety of a wine using the
 
 The accuracy score was based on the correct classification rate for the model’s performance on the test data. I generated and assessed these models in Python, using the PyCharm IDE. As a sampling method, I used 10-fold cross-validation for model assessment and comparison.
 
+RESULTS:
